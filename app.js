@@ -695,10 +695,14 @@ function openProduct(p) {
       <ul class="list">
         <li class="cell static field-cell"><input id="p-name" placeholder="Nombre" maxlength="120" autocomplete="off" enterkeyhint="next"></li>
         <li class="cell static field-cell"><textarea id="p-desc" placeholder="Descripción básica: colores, material, estado…" maxlength="400" rows="3"></textarea></li>
-        <li class="cell static field-cell"><input id="p-size" placeholder="Medida (opcional)" maxlength="40" autocomplete="off"></li>
       </ul>
-      <div class="size-chips" id="p-sizes" role="group" aria-label="Medidas de las publicaciones">
-        ${SIZE_PRESETS.map(x => `<button type="button" data-size="${esc(x.size)}"><b>${x.label}</b><span>${esc(x.size)}</span></button>`).join("")}</div>
+      <h3 class="sec-head small">Tamaño</h3>
+      <div class="size-chips" id="p-sizes" role="group" aria-label="Tamaño del producto">
+        ${SIZE_PRESETS.map(x => `<button type="button" data-size="${esc(x.size)}"><b>${x.label}</b><span>${esc(x.size)}</span></button>`).join("")}
+        <button type="button" data-custom="1" class="wide"><b>Personalizado</b><span>Escribe otra medida</span></button></div>
+      <ul class="list" id="p-size-wrap" hidden>
+        <li class="cell static field-cell"><input id="p-size" placeholder="Medida, ej. 60 × 40 cm" maxlength="40" autocomplete="off" enterkeyhint="done"></li>
+      </ul>
       <h3 class="sec-head small">Categoría</h3>
       <div class="segmented" id="p-kind" style="--n:3"><span class="seg-thumb"></span>
         ${kinds.map(k => `<button type="button" data-v="${k}" aria-selected="false">${KINDS[k].one}</button>`).join("")}</div>
@@ -754,12 +758,22 @@ function openProduct(p) {
       body.querySelector("#p-name").value = p?.name || "";
       body.querySelector("#p-desc").value = p?.desc || "";
       body.querySelector("#p-size").value = p?.size || "";
-      const paintSizes = () => body.querySelectorAll("#p-sizes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.size === body.querySelector("#p-size").value.trim())));
+      const sizeIn = body.querySelector("#p-size"), isPreset = v => SIZE_PRESETS.some(x => x.size === v);
+      let customOn = !!p?.size && !isPreset(p.size);
+      const paintSizes = () => {
+        body.querySelectorAll("#p-sizes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.custom ? customOn : !customOn && b.dataset.size === sizeIn.value.trim())));
+        body.querySelector("#p-size-wrap").hidden = !customOn;
+      };
       body.querySelector("#p-sizes").addEventListener("click", e => {
-        const b = e.target.closest("button[data-size]"); if (!b) return;
-        const inp = body.querySelector("#p-size"); inp.value = inp.value.trim() === b.dataset.size ? "" : b.dataset.size; paintSizes();
+        const b = e.target.closest("button"); if (!b) return;
+        if (b.dataset.custom) {
+          customOn = !customOn;
+          if (customOn) { if (isPreset(sizeIn.value.trim())) sizeIn.value = ""; paintSizes(); sizeIn.focus(); }
+          else { sizeIn.value = ""; paintSizes(); }
+          return;
+        }
+        customOn = false; sizeIn.value = sizeIn.value.trim() === b.dataset.size ? "" : b.dataset.size; paintSizes();
       });
-      body.querySelector("#p-size").addEventListener("input", paintSizes);
       paintSizes();
       body.querySelector("#p-pub").checked = !!p?.published;
       body.querySelector("#p-q").value = f.q || "";

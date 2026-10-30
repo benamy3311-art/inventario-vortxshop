@@ -77,6 +77,16 @@ export async function buildPDF({ groups, st, fecha, people }) {
       doc.setGState(new doc.GState({ opacity: .6 })); doc.setFillColor(255, 255, 255); doc.rect(x + 2, y + 2, iw, iw, "F");
       doc.setGState(new doc.GState({ opacity: 1 }));
     }
+    const sz = i.size || i.g?.size || i.product?.size || "";
+    if (sz) {
+      // Medida bien visible sobre la foto, abajo a la izquierda.
+      doc.setFont("helvetica", "bold");
+      let fs = 8; doc.setFontSize(fs);
+      while (fs > 5.6 && doc.getTextWidth(sz) > iw - 6) { fs -= .3; doc.setFontSize(fs); }
+      const pw = doc.getTextWidth(sz) + 4.4;
+      doc.setFillColor(...INK); doc.roundedRect(x + 3, y + 2 + iw - 6.4, pw, 5, 2.5, 2.5, "F");
+      doc.setTextColor(255, 255, 255); doc.text(sz, x + 3 + pw / 2, y + 2 + iw - 2.9, { align: "center" });
+    }
     doc.setFont("helvetica", "bold"); doc.setFontSize(6.5);
     const tag = i.n != null ? pad(i.n) : "NUEVO", tw = Math.max(7, doc.getTextWidth(tag) + 3);
     doc.setFillColor(...INK); doc.roundedRect(x + 3.5, y + 3.5, tw, 4.2, 2.1, 2.1, "F");
@@ -123,12 +133,14 @@ export async function buildPDF({ groups, st, fecha, people }) {
       const conStock = list.filter(i => st(i.key).s === "hay").length;
       // La medida va en una pastilla oscura al inicio de la línea de datos; el resto del texto se corre a su derecha.
       doc.setFont("helvetica", "bold"); doc.setFontSize(7.6);
-      const pw = g.size ? doc.getTextWidth(g.size) + 5 : 0, off = g.size ? pw + 2 : 0;
+      // En grupos de un solo cuadro no cabe junto al texto; la medida ya va sobre la foto.
+      const gsize = span >= 2 ? g.size : "";
+      const pw = gsize ? doc.getTextWidth(gsize) + 5 : 0, off = gsize ? pw + 2 : 0;
       doc.setFont("helvetica", "normal"); doc.setFontSize(7);
       const meta = doc.splitTextToSize([g.mco && `MCO ${g.mco}`, g.dyn && "Agregados desde la app", `${conStock} de ${list.length} con stock`, `${tot} uds`].filter(Boolean).join(" · "), sw - 2 - off);
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5);
       const title = doc.splitTextToSize(g.title, sw - 2);
-      return { list, x, title, meta, size: g.size, pw, off, h: title.length * 4.4 + Math.max(meta.length * 3.1, g.size ? 4.6 : 0) + 2.5 };
+      return { list, x, title, meta, size: gsize, pw, off, h: title.length * 4.4 + Math.max(meta.length * 3.1, gsize ? 4.6 : 0) + 2.5 };
     });
     const hh = Math.max(...heads.map(h => h.h));
     const rows = Math.max(...heads.map(h => Math.ceil(h.list.length / 5)));
