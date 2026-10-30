@@ -1,5 +1,5 @@
 // Mantiene la app disponible sin señal. Los datos los sincroniza Firestore por su cuenta.
-const V = "inventario-v2";
+const V = "inventario-v3";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "catalog.js", "pdf.js", "firebase-config.js", "manifest.webmanifest",
   "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.png"];
 const CDN = /^(www\.gstatic\.com|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com)$/;

@@ -121,11 +121,14 @@ export async function buildPDF({ groups, st, fecha, people }) {
       col += span;
       const tot = list.reduce((a, i) => a + (st(i.key).s === "no" ? 0 : st(i.key).q || 0), 0);
       const conStock = list.filter(i => st(i.key).s === "hay").length;
+      // La medida va en una pastilla oscura al inicio de la línea de datos; el resto del texto se corre a su derecha.
+      doc.setFont("helvetica", "bold"); doc.setFontSize(7.6);
+      const pw = g.size ? doc.getTextWidth(g.size) + 5 : 0, off = g.size ? pw + 2 : 0;
       doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-      const meta = doc.splitTextToSize([g.size, g.mco && `MCO ${g.mco}`, g.dyn && "Agregados desde la app", `${conStock} de ${list.length} con stock`, `${tot} uds`].filter(Boolean).join(" · "), sw - 2);
+      const meta = doc.splitTextToSize([g.mco && `MCO ${g.mco}`, g.dyn && "Agregados desde la app", `${conStock} de ${list.length} con stock`, `${tot} uds`].filter(Boolean).join(" · "), sw - 2 - off);
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5);
       const title = doc.splitTextToSize(g.title, sw - 2);
-      return { list, x, title, meta, h: title.length * 4.4 + meta.length * 3.1 + 2.5 };
+      return { list, x, title, meta, size: g.size, pw, off, h: title.length * 4.4 + Math.max(meta.length * 3.1, g.size ? 4.6 : 0) + 2.5 };
     });
     const hh = Math.max(...heads.map(h => h.h));
     const rows = Math.max(...heads.map(h => Math.ceil(h.list.length / 5)));
@@ -133,8 +136,14 @@ export async function buildPDF({ groups, st, fecha, people }) {
     heads.forEach(h => {
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...INK);
       doc.text(h.title, h.x, y + 4, { lineHeightFactor: 1.2 });
+      const base = y + 4 + h.title.length * 4.4;
+      if (h.size) {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(7.6);
+        doc.setFillColor(...INK); doc.roundedRect(h.x, base - 3.3, h.pw, 4.6, 2.3, 2.3, "F");
+        doc.setTextColor(255, 255, 255); doc.text(h.size, h.x + h.pw / 2, base, { align: "center" });
+      }
       doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...MUT);
-      doc.text(h.meta, h.x, y + 4 + h.title.length * 4.4, { lineHeightFactor: 1.25 });
+      doc.text(h.meta, h.x + h.off, base, { lineHeightFactor: 1.25 });
     });
     y += hh;
     for (let r = 0; r < rows; r++) {
