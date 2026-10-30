@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inventario VORTXSHOP</title>
+<meta name="description" content="Conteo de inventario de VORTXSHOP: cuadros y sillas publicados en Mercado Libre.">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Inventario">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Pantalla de carga -->
+<section class="screen center" id="screen-loading">
+  <img class="app-icon" src="icons/icon-192.png" alt="" width="96" height="96">
+  <div class="spinner" aria-label="Cargando"></div>
+</section>
+
+<!-- Inicio de sesión -->
+<section class="screen" id="screen-login" hidden>
+  <div class="welcome">
+    <img class="app-icon" src="icons/icon-512.png" alt="" width="112" height="112">
+    <h1>Inventario</h1>
+    <p class="welcome-sub">VORTXSHOP</p>
+    <ul class="features">
+      <li><span class="f-ico blue"><svg viewBox="0 0 24 24"><path d="M4 6.5l1.6 1.6L8.5 5M4 12.5l1.6 1.6 2.9-3.1M4 18.5l1.6 1.6 2.9-3.1M11.5 7h8.5M11.5 13h8.5M11.5 19h8.5"/></svg></span>
+        <div><b>Cuenta en bodega</b><span>Marca cada cuadro y silla con su foto.</span></div></li>
+      <li><span class="f-ico green"><svg viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.8-3 3-4.6 5.5-4.6s4.7 1.6 5.5 4.6"/><circle cx="16.5" cy="9.5" r="2.6"/><path d="M15.8 14.6c2.3-.2 4 1.1 4.7 3.9"/></svg></span>
+        <div><b>En equipo</b><span>Varias personas cuentan a la vez y todo se sincroniza.</span></div></li>
+      <li><span class="f-ico purple"><svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="14" rx="3"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8.5 5.5l1.2-2h4.6l1.2 2"/></svg></span>
+        <div><b>Productos nuevos</b><span>Agrega productos con foto desde el celular.</span></div></li>
+      <li><span class="f-ico orange"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5M10 13h5.5M10 16.5h5.5"/></svg></span>
+        <div><b>Informe en PDF</b><span>Exporta el conteo con fotos y cantidades.</span></div></li>
+    </ul>
+  </div>
+  <div class="welcome-actions">
+    <button class="btn-google" id="btn-login" type="button">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.6-.4-3.9z"/></svg>
+      Continuar con Google
+    </button>
+    <p class="fine">Solo pueden entrar las personas que el administrador haya invitado.</p>
+  </div>
+</section>
+
+<!-- Sin acceso -->
+<section class="screen" id="screen-noaccess" hidden>
+  <div class="welcome">
+    <div class="lock-ico"><svg viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></div>
+    <h1>Sin acceso</h1>
+    <p class="welcome-text">Esta cuenta de Google no está en la lista de personas invitadas:</p>
+    <span class="email-pill" id="noaccess-email"></span>
+    <p class="welcome-text">Pídele a un administrador que te agregue desde la pestaña Cuenta y toca "Volver a comprobar".</p>
+  </div>
+  <div class="welcome-actions">
+    <button class="btn-capsule" id="btn-retry" type="button">Volver a comprobar</button>
+    <button class="btn-plain" id="btn-other" type="button">Usar otra cuenta</button>
+  </div>
+</section>
+
+<!-- App -->
+<div id="main" hidden>
+
+  <!-- Conteo -->
+  <section class="view" id="view-conteo" data-title="Conteo">
+    <header class="nav"><span></span><span class="nav-title">Conteo</span>
+      <div class="nav-actions"><button class="glass-btn" id="btn-jump" type="button" aria-label="Ir al siguiente pendiente"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></button>
+        <button class="glass-btn" id="btn-add-quick" type="button" aria-label="Añadir producto"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+    </header>
+    <h1 class="large-title">Conteo</h1>
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></svg>
+      <input id="search" type="search" placeholder="Buscar" autocomplete="off" enterkeyhint="search" aria-label="Buscar producto">
+      <button class="search-clear" id="search-clear" type="button" aria-label="Borrar búsqueda" hidden>
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" class="fill"/><path d="M9 9l6 6M15 9l-6 6" class="x"/></svg></button>
+    </label>
+    <div class="segmented" id="filters" role="tablist" style="--n:4">
+      <span class="seg-thumb"></span>
+      <button role="tab" data-f="todos" aria-selected="true">Todos</button>
+      <button role="tab" data-f="pend" aria-selected="false">Pendientes</button>
+      <button role="tab" data-f="hay" aria-selected="false">Hay</button>
+      <button role="tab" data-f="no" aria-selected="false">No hay</button>
+    </div>
+
+    <ul class="list progress-list">
+      <li class="cell static">
+        <svg class="ring" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18" class="ring-track"/><circle cx="22" cy="22" r="18" class="ring-fill" id="ring-mini"/></svg>
+        <div class="cell-text"><div class="t1" id="prog-title">0 de 33 revisados</div><div class="t2" id="prog-sub">0 unidades</div></div>
+        <span class="sync" id="sync"></span>
+      </li>
+    </ul>
+
+    <div id="catalog"></div>
+    <div class="empty" id="catalog-empty" hidden>
+      <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></svg>
+      <b>Sin resultados</b><span>Prueba con otra búsqueda o filtro.</span>
+    </div>
+  </section>
+
+  <!-- Resumen -->
+  <section class="view" id="view-resumen" data-title="Resumen" hidden>
+    <header class="nav"><span></span><span class="nav-title">Resumen</span>
+      <div class="nav-actions"><button class="glass-btn" id="btn-export-nav" type="button" aria-label="Exportar PDF"><svg viewBox="0 0 24 24"><path d="M12 15V3.5M7.5 8L12 3.5 16.5 8"/><path d="M8 11H6.5a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5H16"/></svg></button></div>
+    </header>
+    <h1 class="large-title">Resumen</h1>
+
+    <div class="hero-card">
+      <div class="ring-wrap">
+        <svg class="big-ring" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" class="ring-track"/><circle cx="60" cy="60" r="50" class="ring-fill" id="ring-big"/></svg>
+        <span class="ring-pct" id="r-pct">0 %</span>
+      </div>
+      <div class="hero-text"><span class="eyebrow">Revisados</span><b id="r-rev">0<small>/33</small></b><span id="r-left">Faltan 33 productos</span></div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><span class="t-ico green"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><b id="r-hay">0</b><span>Con stock</span></div>
+      <div class="tile"><span class="t-ico red"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></span><b id="r-no">0</b><span>Sin stock</span></div>
+      <div class="tile"><span class="t-ico blue"><svg viewBox="0 0 24 24"><path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5L12 12l8.5-4.5M12 12v9"/></svg></span><b id="r-uds">0</b><span>Unidades</span></div>
+      <div class="tile"><span class="t-ico gray"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span><b id="r-pend">0</b><span>Pendientes</span></div>
+    </div>
+
+    <h2 class="sec-head">Conteo</h2>
+    <ul class="list">
+      <li class="cell static"><div class="cell-text"><div class="t1">Fecha</div></div><input class="date-pill" id="f-fecha" type="date" aria-label="Fecha del conteo"></li>
+      <li class="cell static"><div class="cell-text"><div class="t1">Contaron</div><div class="t2" id="r-people">Nadie todavía</div></div></li>
+    </ul>
+
+    <h2 class="sec-head">Por producto</h2>
+    <ul class="list" id="r-groups"></ul>
+
+    <ul class="list spaced">
+      <li><button class="cell action" id="btn-export" type="button"><span class="a-ico blue"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4.5 4.5v12.5H7z"/><path d="M14 3.5V8h4.5M10 13h5.5M10 16.5h5.5"/></svg></span><span class="a-label blue-text">Exportar PDF</span></button></li>
+    </ul>
+    <p class="sec-foot">Incluye la foto, el estado y las unidades de cada producto.</p>
+
+    <ul class="list spaced admin-only" hidden>
+      <li><button class="cell action" id="btn-reset" type="button"><span class="a-label red-text">Reiniciar conteo</span></button></li>
+    </ul>
+    <p class="sec-foot admin-only" hidden>Borra las marcas y las unidades para empezar un conteo nuevo. Los productos agregados se conservan.</p>
+  </section>
+
+  <!-- Productos agregados -->
+  <section class="view" id="view-productos" data-title="Productos" hidden>
+    <header class="nav"><span></span><span class="nav-title">Productos</span>
+      <div class="nav-actions"><button class="glass-btn" id="btn-add-product" type="button" aria-label="Añadir producto"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+    </header>
+    <h1 class="large-title">Productos</h1>
+    <p class="lede">Agrega productos con foto, descripción y disponibilidad. También aparecen en el Conteo.</p>
+    <ul class="list spaced-top" id="products"></ul>
+    <div class="empty" id="products-empty">
+      <svg viewBox="0 0 24 24"><rect x="3.5" y="5.5" width="17" height="14" rx="3"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8.5 5.5l1.2-2h4.6l1.2 2"/></svg>
+      <b>Sin productos agregados</b><span>Toma una foto y registra un cuadro, una silla o cualquier otro producto.</span>
+      <button class="btn-capsule small" id="btn-add-empty" type="button">Añadir producto</button>
+    </div>
+  </section>
+
+  <!-- Cuenta -->
+  <section class="view" id="view-cuenta" data-title="Cuenta" hidden>
+    <header class="nav"><span></span><span class="nav-title">Cuenta</span><span></span></header>
+    <h1 class="large-title">Cuenta</h1>
+    <div class="profile-card">
+      <span class="avatar xxl" id="me-avatar"></span>
+      <b id="me-name"></b>
+      <span id="me-email"></span>
+      <span class="badge" id="me-role"></span>
+    </div>
+
+    <h2 class="sec-head">Personas con acceso</h2>
+    <ul class="list" id="members"></ul>
+    <p class="sec-foot">Cada persona entra con su cuenta de Google. Los administradores pueden invitar, cambiar permisos y reiniciar el conteo.</p>
+
+    <h2 class="sec-head">App</h2>
+    <ul class="list">
+      <li><button class="cell action" id="btn-install" type="button"><span class="a-ico gray"><svg viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></span><span class="a-label">Agregar a la pantalla de inicio</span><svg class="chev" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></svg></button></li>
+    </ul>
+
+    <ul class="list spaced">
+      <li><button class="cell action centered" id="btn-logout" type="button"><span class="a-label red-text">Cerrar sesión</span></button></li>
+    </ul>
+    <p class="sec-foot center">Inventario VORTXSHOP</p>
+  </section>
+
+  <!-- Barra de pestañas -->
+  <nav class="tabbar" id="tabbar" aria-label="Secciones">
+    <span class="tab-pill"></span>
+    <button data-tab="conteo" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 6.5l1.6 1.6L8.5 5M4 12.5l1.6 1.6 2.9-3.1M4 18.5l1.6 1.6 2.9-3.1M11.5 7h8.5M11.5 13h8.5M11.5 19h8.5"/></svg><span>Conteo</span></button>
+    <button data-tab="resumen"><svg viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5H12z"/><path d="M15 3.9A8.5 8.5 0 0 1 20.1 9H15z"/></svg><span>Resumen</span></button>
+    <button data-tab="productos"><svg viewBox="0 0 24 24"><path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5L12 12l8.5-4.5M12 12v9"/></svg><span>Productos</span></button>
+    <button data-tab="cuenta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3.2"/><path d="M6.2 18.4c1.4-2 3.4-3 5.8-3s4.4 1 5.8 3"/></svg><span>Cuenta</span></button>
+  </nav>
+</div>
+
+<!-- Hoja inferior -->
+<div class="sheet-wrap" id="sheet-wrap" hidden>
+  <div class="sheet-backdrop" id="sheet-backdrop"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="sheet-grab" id="sheet-grab"><span class="grabber"></span>
+      <div class="sheet-head">
+        <button class="glass-btn" id="sheet-left" type="button" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+        <h2 id="sheet-title"></h2>
+        <button class="glass-btn primary" id="sheet-right" type="button" aria-label="Listo" hidden><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+      </div>
+    </div>
+    <div class="sheet-body" id="sheet-body"></div>
+  </div>
+</div>
+
+<!-- Hoja de acciones -->
+<div class="action-wrap" id="action-wrap" hidden>
+  <div class="sheet-backdrop" id="action-backdrop"></div>
+  <div class="action-sheet" id="action-sheet" role="dialog" aria-modal="true">
+    <div class="action-group" id="action-group"></div>
+    <button class="action-cancel" id="action-cancel" type="button">Cancelar</button>
+  </div>
+</div>
+
+<div class="hud" id="hud" role="status" aria-live="polite"><span id="hud-ico"></span><span id="hud-text"></span></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
