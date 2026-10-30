@@ -9,9 +9,9 @@ export const GROUPS = [
     [11, "Amarillo y negro", "#BF8B0D"], [12, "Blanco y azul", "#435F7E"], [13, "Blanco y amarillo", "#D4A520"], [14, "Blanco y violeta", "#6A5A9A"] ] },
   { id: "busto", kind: "cuadro", title: "Cuadro busto griego", size: "43 × 43 cm", mco: "2054234933", items: [
     [15, "Busto femenino", "#B58267"], [16, "Busto masculino", "#B9886C"] ] },
-  { id: "circular", kind: "cuadro", title: "Cuadro circular 3D", size: "", mco: "4147130620", items: [
+  { id: "circular", kind: "cuadro", title: "Cuadro circular 3D", size: "Ø 80 cm", mco: "4147130620", items: [
     [17, "Azul y negro", "#226378"], [32, "Crema y dorado", "#C9A227"], [33, "Naranja", "#D9541E"] ] },
-  { id: "c3d", kind: "cuadro", title: "Cuadro 3D", size: "79,5 × 59 cm", mco: "2054338879", items: [
+  { id: "c3d", kind: "cuadro", title: "Cuadro 3D", size: "79,5 × 59,5 cm", mco: "2054338879", items: [
     [18, "Blanco y dorado", "#AB8F5C"], [19, "Naranja", "#A55E29"], [20, "Taupe", "#604D3E"], [21, "Blanco y azul", "#466A86"] ] },
   { id: "c3dg", kind: "cuadro", title: "Cuadro 3D grande", size: "120 × 80 cm", mco: "2054323967", items: [
     [22, "Blanco y naranja", "#CC8A68"], [23, "Azul y negro", "#1B4F60"], [24, "Naranja", "#C75C22"] ] },
@@ -23,6 +23,14 @@ export const GROUPS = [
     [30, "Negra", "#3A3A3C"] ] },
   { id: "malla", kind: "silla", title: "Silla Ergonómica de Malla", size: "Altura máx. 124 cm", mco: "4077261460", items: [
     [31, "Gris y negro", "#8E9196"] ] },
+];
+
+// Medidas exactas según las publicaciones de Mercado Libre. Sirven de atajo al agregar un producto.
+export const SIZE_PRESETS = [
+  { label: "Pequeño", size: "43 × 43 cm" },
+  { label: "Mediano", size: "79,5 × 59,5 cm" },
+  { label: "Grande", size: "120 × 80 cm" },
+  { label: "Circular", size: "Ø 80 cm" },
 ];
 
 export const ITEMS = [];

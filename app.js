@@ -1,4 +1,4 @@
-import { GROUPS, ITEMS } from "./catalog.js";
+import { GROUPS, ITEMS, SIZE_PRESETS } from "./catalog.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
@@ -54,12 +54,19 @@ ITEMS.forEach(i => {
 let CAT = [], ALL = [], BY_KEY = new Map();
 
 function buildCatalog() {
-  const dyn = Object.keys(KINDS).map(kind => {
-    const g = { id: "nuevo-" + kind, kind, title: KINDS[kind].group, size: "", mco: "", dyn: true, items: [] };
-    g.items = S.products.filter(p => p.kind === kind).map(p => ({
-      key: p.id, n: null, name: p.name, desc: p.desc || "", size: p.size || "", color: p.color || "#8E8E93", img: p.photo || "", g, product: p,
-    }));
-    return g;
+  // Los productos agregados se agrupan por medida para que se vea cuál es cuál.
+  const sizeRank = sz => { const i = SIZE_PRESETS.findIndex(x => x.size === sz); return i < 0 ? SIZE_PRESETS.length : i; };
+  const dyn = Object.keys(KINDS).flatMap(kind => {
+    const mine = S.products.filter(p => p.kind === kind);
+    const sizes = [...new Set(mine.map(p => p.size || ""))]
+      .sort((a, b) => (a ? 0 : 1) - (b ? 0 : 1) || sizeRank(a) - sizeRank(b) || a.localeCompare(b, "es"));
+    return sizes.map((size, n) => {
+      const g = { id: `nuevo-${kind}-${n}`, kind, title: KINDS[kind].group, size, mco: "", dyn: true, items: [] };
+      g.items = mine.filter(p => (p.size || "") === size).map(p => ({
+        key: p.id, n: null, name: p.name, desc: p.desc || "", size: p.size || "", color: p.color || "#8E8E93", img: p.photo || "", g, product: p,
+      }));
+      return g;
+    });
   }).filter(g => g.items.length);
   CAT = Object.keys(KINDS).flatMap(kind => [...STATIC_GROUPS.filter(g => g.kind === kind), ...dyn.filter(g => g.kind === kind)]);
   ALL = CAT.flatMap(g => g.items);
@@ -287,7 +294,7 @@ function renderCatalog() {
     if (!groups.length) return;
     h += `<h2 class="cat-title" data-kind="${kind}">${KINDS[kind].cat}</h2>`;
     groups.forEach(g => {
-      h += `<section class="grp" id="g-${g.id}"><div class="grp-head"><b>${esc(g.title)}</b><span id="gt-${g.id}">0 uds</span></div><ul class="list catalog-list">`;
+      h += `<section class="grp" id="g-${g.id}"><div class="grp-head"><b>${esc(g.title)}</b><span id="gt-${g.id}">0 uds</span>${g.size ? `<small class="grp-size">${esc(g.size)}</small>` : ""}</div><ul class="list catalog-list">`;
       g.items.forEach(i => {
         h += `<li data-k="${esc(i.key)}" data-s="">
           <div class="swipe-act lead" aria-hidden="true"><button type="button" data-act="hay" tabindex="-1">${ICON.check}<span>Hay</span></button></div>
@@ -352,7 +359,7 @@ function applyFilter() {
     const li = rowEl(i.key); if (!li) return;
     const s = st(i.key).s;
     const okF = S.filter === "todos" || S.keep.has(i.key) || (S.filter === "pend" ? !s : S.filter === s);
-    const okQ = !q || norm(`${i.name} ${i.g.title} ${i.n != null ? pad(i.n) : ""} ${i.g.mco} ${i.desc || ""}`).includes(q);
+    const okQ = !q || norm(`${i.name} ${i.g.title} ${i.n != null ? pad(i.n) : ""} ${i.g.mco} ${i.g.size || ""} ${i.desc || ""}`).includes(q);
     li.hidden = !(okF && okQ);
     any ||= okF && okQ;
   });
@@ -584,7 +591,7 @@ function paintResumen() {
   $("#r-groups").innerHTML = CAT.map(g => {
     const list = g.items, hay = list.filter(i => st(i.key).s === "hay").length, rev = list.filter(i => st(i.key).s).length, u = unitsOf(g);
     return `<li><button type="button" class="cell action" data-g="${g.id}">
-      <div class="cell-text"><div class="t1">${esc(g.title)}</div><div class="t2">${hay} de ${list.length} con stock${rev < list.length ? ` · ${plural(list.length - rev, "pendiente", "pendientes")}` : ""}</div>
+      <div class="cell-text"><div class="t1">${esc(g.title)}${g.dyn && g.size ? ` · ${esc(g.size)}` : ""}</div><div class="t2">${hay} de ${list.length} con stock${rev < list.length ? ` · ${plural(list.length - rev, "pendiente", "pendientes")}` : ""}</div>
       <div class="mini-bar"><i style="width:${list.length ? hay / list.length * 100 : 0}%"></i></div></div>
       <span class="r-units">${plural(u, "ud", "uds")}</span>${ICON.chevR}</button></li>`;
   }).join("");
@@ -644,7 +651,7 @@ function paintProducts() {
     const status = s.s === "hay" ? `<span class="dot-hay">Hay · ${plural(q, "unidad", "unidades")}</span>` : s.s === "no" ? `<span class="dot-no">No hay</span>` : "Sin revisar";
     return `<li><button type="button" class="cell action" data-id="${esc(p.id)}">
       ${thumbHTML({ img: p.photo, n: null })}
-      <div class="cell-text"><div class="t1">${esc(p.name)}</div><div class="t2">${KINDS[p.kind]?.one || "Otro"} · ${status}</div></div>
+      <div class="cell-text"><div class="t1">${esc(p.name)}</div><div class="t2">${p.size || KINDS[p.kind]?.one || "Otro"} · ${status}</div></div>
       ${ICON.chevR}</button></li>`;
   }).join("");
 }
@@ -690,6 +697,8 @@ function openProduct(p) {
         <li class="cell static field-cell"><textarea id="p-desc" placeholder="Descripción básica: colores, material, estado…" maxlength="400" rows="3"></textarea></li>
         <li class="cell static field-cell"><input id="p-size" placeholder="Medida (opcional)" maxlength="40" autocomplete="off"></li>
       </ul>
+      <div class="size-chips" id="p-sizes" role="group" aria-label="Medidas de las publicaciones">
+        ${SIZE_PRESETS.map(x => `<button type="button" data-size="${esc(x.size)}"><b>${x.label}</b><span>${esc(x.size)}</span></button>`).join("")}</div>
       <h3 class="sec-head small">Categoría</h3>
       <div class="segmented" id="p-kind" style="--n:3"><span class="seg-thumb"></span>
         ${kinds.map(k => `<button type="button" data-v="${k}" aria-selected="false">${KINDS[k].one}</button>`).join("")}</div>
@@ -745,6 +754,13 @@ function openProduct(p) {
       body.querySelector("#p-name").value = p?.name || "";
       body.querySelector("#p-desc").value = p?.desc || "";
       body.querySelector("#p-size").value = p?.size || "";
+      const paintSizes = () => body.querySelectorAll("#p-sizes button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.size === body.querySelector("#p-size").value.trim())));
+      body.querySelector("#p-sizes").addEventListener("click", e => {
+        const b = e.target.closest("button[data-size]"); if (!b) return;
+        const inp = body.querySelector("#p-size"); inp.value = inp.value.trim() === b.dataset.size ? "" : b.dataset.size; paintSizes();
+      });
+      body.querySelector("#p-size").addEventListener("input", paintSizes);
+      paintSizes();
       body.querySelector("#p-pub").checked = !!p?.published;
       body.querySelector("#p-q").value = f.q || "";
       paintPhoto(); paintKind(); paintAv();

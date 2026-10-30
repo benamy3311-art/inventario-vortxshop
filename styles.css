@@ -190,7 +190,9 @@ img { max-width: 100%; display: block }
 .grp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 18px calc(var(--gutter-r) + 16px) 7px calc(var(--gutter-l) + 16px);
   font-size: 13px; letter-spacing: -.08px; color: var(--label2); text-transform: uppercase }
 .grp-head b { font-weight: 400; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.grp-head { flex-wrap: wrap; row-gap: 1px }
 .grp-head span { flex: none; text-transform: none; font-variant-numeric: tabular-nums }
+.grp-size { flex: 0 0 100%; order: 3; font-size: 12px; text-transform: none; letter-spacing: 0; color: var(--label2); font-variant-numeric: tabular-nums }
 .catalog-list { --sep-left: 82px }
 .catalog-list > li { overflow: hidden }
 .cell-body { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 14px; min-height: 76px; background: var(--cell);
@@ -420,3 +422,11 @@ li:not([data-dir]) .swipe-act, li[data-dir="lead"] .swipe-act.trail, li[data-dir
 @media (prefers-reduced-motion: reduce) {
   *, *::before { transition-duration: .01ms !important; animation-duration: .01ms !important }
 }
+
+/* Atajos de medida al agregar un producto */
+.size-chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0 }
+.size-chips button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; padding: 9px 12px; border: 0; border-radius: 12px; background: var(--fill3); color: var(--label); font: inherit; text-align: left; cursor: pointer }
+.size-chips b { font-size: 15px; font-weight: 600; letter-spacing: -.24px }
+.size-chips span { font-size: 13px; color: var(--label2); font-variant-numeric: tabular-nums; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.size-chips button[aria-pressed="true"] { background: var(--blue) }
+.size-chips button[aria-pressed="true"] b, .size-chips button[aria-pressed="true"] span { color: var(--on-tint) }
