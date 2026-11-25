@@ -37,3 +37,16 @@ export const ITEMS = [];
 GROUPS.forEach(g => g.items.forEach(([n, name, color]) =>
   ITEMS.push({ n, name, color, g, img: `img/${g.kind === "cuadro" ? "c" : "s"}${String(n).padStart(2, "0")}.jpg` })));
 export const TOTAL = ITEMS.length;
+
+// Los sets de uñas se cuentan enteros por variante y en cajas de seis en el resumen.
+export const SETS_PER_BOX = 6;
+export const isNailSet = product => product?.stockUnit === "nail-set";
+export const stockSixths = (product, quantity) => isNailSet(product) ? quantity : quantity * SETS_PER_BOX;
+
+const decimalStock = new Intl.NumberFormat("es-CO", { useGrouping: false, maximumFractionDigits: 6 });
+export function formatStockUnits(sixths) {
+  if (!Number.isInteger(sixths)) return decimalStock.format(sixths / SETS_PER_BOX);
+  const whole = Math.floor(sixths / SETS_PER_BOX);
+  const fraction = ["", "1/6", "1/3", "1/2", "2/3", "5/6"][sixths % SETS_PER_BOX];
+  return fraction ? [whole || "", fraction].filter(Boolean).join(" ") : String(whole);
+}

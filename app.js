@@ -1,4 +1,4 @@
-import { GROUPS, ITEMS, SIZE_PRESETS } from "./catalog.js";
+import { GROUPS, ITEMS, SIZE_PRESETS, SETS_PER_BOX, isNailSet, stockSixths, formatStockUnits } from "./catalog.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
@@ -37,6 +37,15 @@ const KINDS = {
   otro: { cat: "Otros", group: "Otros productos", one: "Otro" },
 };
 
+const CATALOG_KINDS = { ...KINDS, unas: { cat: "Uñas", group: "Uñas", one: "Uñas postizas" } };
+const quantityLabel = product => isNailSet(product) ? "Sets individuales" : "Unidades";
+const quantityStep = product => isNailSet(product) ? "un set" : "una unidad";
+function stockTotalLabel(sixths, boxes = false) {
+  const single = sixths === SETS_PER_BOX;
+  const unit = boxes ? (single ? "caja eq." : "cajas eq.") : (single ? "ud" : "uds");
+  return `${formatStockUnits(sixths)} ${unit}`;
+}
+
 const S = {
   user: null, me: null, items: {}, products: [], meta: {}, members: [],
   filter: "todos", query: "", pending: false, tab: "conteo", keep: new Set(), sheetKey: null,
@@ -56,19 +65,20 @@ let CAT = [], ALL = [], BY_KEY = new Map();
 function buildCatalog() {
   // Los productos agregados se agrupan por medida para que se vea cuál es cuál.
   const sizeRank = sz => { const i = SIZE_PRESETS.findIndex(x => x.size === sz); return i < 0 ? SIZE_PRESETS.length : i; };
-  const dyn = Object.keys(KINDS).flatMap(kind => {
-    const mine = S.products.filter(p => p.kind === kind);
+  const dyn = Object.keys(CATALOG_KINDS).flatMap(kind => {
+    const mine = S.products.filter(p => (isNailSet(p) ? "unas" : p.kind) === kind);
     const sizes = [...new Set(mine.map(p => p.size || ""))]
       .sort((a, b) => (a ? 0 : 1) - (b ? 0 : 1) || sizeRank(a) - sizeRank(b) || a.localeCompare(b, "es"));
     return sizes.map((size, n) => {
-      const g = { id: `nuevo-${kind}-${n}`, kind, title: KINDS[kind].group, size, mco: "", dyn: true, items: [] };
+      const title = kind === "unas" && size ? size : CATALOG_KINDS[kind].group;
+      const g = { id: `nuevo-${kind}-${n}`, kind, title, size, mco: "", dyn: true, items: [] };
       g.items = mine.filter(p => (p.size || "") === size).map(p => ({
         key: p.id, n: null, name: p.name, desc: p.desc || "", size: p.size || "", color: p.color || "#8E8E93", img: p.photo || "", g, product: p,
       }));
       return g;
     });
   }).filter(g => g.items.length);
-  CAT = Object.keys(KINDS).flatMap(kind => [...STATIC_GROUPS.filter(g => g.kind === kind), ...dyn.filter(g => g.kind === kind)]);
+  CAT = Object.keys(CATALOG_KINDS).flatMap(kind => [...STATIC_GROUPS.filter(g => g.kind === kind), ...dyn.filter(g => g.kind === kind)]);
   ALL = CAT.flatMap(g => g.items);
   BY_KEY = new Map(ALL.map(i => [i.key, i]));
 }
@@ -289,12 +299,12 @@ function renderCatalog() {
   buildCatalog();
   if (openLi) openLi = null;
   let h = "";
-  Object.keys(KINDS).forEach(kind => {
+  Object.keys(CATALOG_KINDS).forEach(kind => {
     const groups = CAT.filter(g => g.kind === kind);
     if (!groups.length) return;
-    h += `<h2 class="cat-title" data-kind="${kind}">${KINDS[kind].cat}</h2>`;
+    h += `<h2 class="cat-title" data-kind="${kind}">${CATALOG_KINDS[kind].cat}</h2>`;
     groups.forEach(g => {
-      h += `<section class="grp" id="g-${g.id}"><div class="grp-head"><b>${esc(g.title)}</b><span id="gt-${g.id}">0 uds</span>${g.size ? `<small class="grp-size">${esc(g.size)}</small>` : ""}</div><ul class="list catalog-list">`;
+      h += `<section class="grp" id="g-${g.id}"><div class="grp-head"><b>${esc(g.title)}</b><span id="gt-${g.id}">0 uds</span>${g.size && g.kind !== "unas" ? `<small class="grp-size">${esc(g.size)}</small>` : ""}</div><ul class="list catalog-list">`;
       g.items.forEach(i => {
         h += `<li data-k="${esc(i.key)}" data-s="">
           <div class="swipe-act lead" aria-hidden="true"><button type="button" data-act="hay" tabindex="-1">${ICON.check}<span>Hay</span></button></div>
@@ -302,7 +312,7 @@ function renderCatalog() {
           <div class="cell-body" role="button" tabindex="0" aria-label="${esc(i.name)}, ${esc(g.title)}">
             ${thumbHTML(i)}
             <div class="cell-text"><div class="t1">${esc(i.name)}</div><div class="t2"><span class="status">Sin revisar</span></div></div>
-            <div class="stepper qty-stepper"><button type="button" data-act="dec" aria-label="Restar una unidad">${ICON.minus}</button><span class="qty zero" aria-label="Unidades">0</span><button type="button" data-act="inc" aria-label="Sumar una unidad">${ICON.plus}</button></div>
+            <div class="stepper qty-stepper"><button type="button" data-act="dec" aria-label="Restar ${quantityStep(i.product)}">${ICON.minus}</button><span class="qty zero">0</span><button type="button" data-act="inc" aria-label="Sumar ${quantityStep(i.product)}">${ICON.plus}</button></div>
           </div></li>`;
       });
       h += `</ul></section>`;
@@ -319,7 +329,8 @@ function paintRow(i) {
   li.dataset.s = s.s || "";
   li.querySelector(".status").textContent = s.s === "hay" ? `Hay${s.by ? " · " + first(s.by) : ""}` : s.s === "no" ? `No hay${s.by ? " · " + first(s.by) : ""}` : "Sin revisar";
   const qe = li.querySelector(".qty");
-  qe.textContent = q; qe.classList.toggle("zero", !q);
+  qe.textContent = isNailSet(i.product) ? (s.s || q ? plural(q, "set", "sets") : "—") : q;
+  qe.classList.toggle("zero", !q);
   li.querySelector('[data-act="dec"]').disabled = !q;
   li.querySelector(".lead span").textContent = s.s === "hay" ? "Desmarcar" : "Hay";
   li.querySelector(".trail span").textContent = s.s === "no" ? "Desmarcar" : "No hay";
@@ -327,19 +338,19 @@ function paintRow(i) {
 
 function totals() {
   let rev = 0, hay = 0, no = 0, uds = 0;
-  ALL.forEach(i => { const s = st(i.key); if (s.s) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += s.s === "no" ? 0 : (s.q || 0); });
+  ALL.forEach(i => { const s = st(i.key); if (s.s) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += stockSixths(i.product, s.s === "no" ? 0 : (s.q || 0)); });
   return { rev, hay, no, uds, pend: ALL.length - rev, total: ALL.length };
 }
-const unitsOf = g => g.items.reduce((a, i) => a + (st(i.key).s === "no" ? 0 : st(i.key).q || 0), 0);
+const unitsOf = g => g.items.reduce((a, i) => a + stockSixths(i.product, st(i.key).s === "no" ? 0 : st(i.key).q || 0), 0);
 function setRing(el, p) { const C = 2 * Math.PI * el.r.baseVal.value; el.style.strokeDasharray = C; el.style.strokeDashoffset = C * (1 - (p || 0)); }
 
 function paintItems() {
   ALL.forEach(paintRow);
   const t = totals();
   $("#prog-title").textContent = `${t.rev} de ${t.total} revisados`;
-  $("#prog-sub").textContent = `${plural(t.uds, "ud", "uds")} · ${plural(t.pend, "pendiente", "pendientes")}`;
+  $("#prog-sub").textContent = `${stockTotalLabel(t.uds)} · ${plural(t.pend, "pendiente", "pendientes")}`;
   setRing($("#ring-mini"), t.total ? t.rev / t.total : 0);
-  CAT.forEach(g => { const el = $("#gt-" + g.id); if (el) el.textContent = plural(unitsOf(g), "ud", "uds"); });
+  CAT.forEach(g => { const el = $("#gt-" + g.id); if (el) el.textContent = stockTotalLabel(unitsOf(g), g.kind === "unas"); });
   paintSync(); applyFilter(); paintResumen(); paintProducts();
   if (S.sheetKey != null) paintItemSheet();
 }
@@ -495,10 +506,11 @@ function openItem(k) {
         <button type="button" class="seg-hay" data-v="hay" aria-selected="false">Hay</button>
         <button type="button" class="seg-no" data-v="no" aria-selected="false">No hay</button></div>
       <ul class="list"><li class="cell static qty-cell">
-        <div class="cell-text"><div class="t1">Unidades</div></div>
-        <input class="qty-input" id="is-q" type="number" inputmode="numeric" pattern="[0-9]*" min="0" placeholder="0" aria-label="Unidades">
+        <div class="cell-text"><label class="t1" for="is-q">Unidades</label></div>
+        <input class="qty-input" id="is-q" type="number" inputmode="numeric" min="0" placeholder="0">
         <div class="stepper lg"><button type="button" data-act="dec" aria-label="Restar una unidad">${ICON.minus}</button><i></i><button type="button" data-act="inc" aria-label="Sumar una unidad">${ICON.plus}</button></div>
       </li></ul>
+      <p class="edited" id="is-equivalent" hidden></p>
       <p class="edited" id="is-edited"></p>
       <button type="button" class="text-btn" id="is-editp" hidden>Editar producto</button>
       <div class="sheet-nav">
@@ -512,7 +524,8 @@ function openItem(k) {
       const commit = () => {
         clearTimeout(t);
         if (qi.value === "") return;
-        const q = Math.max(0, parseInt(qi.value, 10) || 0), k = S.sheetKey, cur = st(k);
+        if (!qi.validity.valid) return;
+        const q = qi.valueAsNumber, k = S.sheetKey, cur = st(k);
         if (q === (cur.s === "no" ? 0 : cur.q || 0)) return;
         S.keep.add(k);
         save(backend.setItem(k, q > 0 ? { q, s: "hay" } : { q }));
@@ -550,12 +563,15 @@ function paintItemSheet(changed) {
     ph.innerHTML = i.img ? `<img src="${esc(i.img)}" alt="">${i.n != null ? `<span class="n">${pad(i.n)}</span>` : ""}` : ICON.camera;
     body.querySelector("#is-name").textContent = i.name;
     body.querySelector("#is-meta").textContent = i.g.dyn
-      ? [KINDS[i.g.kind].one, i.size, i.product?.published ? "Publicado en Mercado Libre" : "Sin publicar en Mercado Libre"].filter(Boolean).join(" · ")
+      ? [CATALOG_KINDS[i.g.kind].one, i.size, i.product?.published ? "Publicado en Mercado Libre" : "Sin publicar en Mercado Libre"].filter(Boolean).join(" · ")
       : [i.g.size, `MCO ${i.g.mco}`].filter(Boolean).join(" · ");
     const dsc = body.querySelector("#is-desc");
     dsc.hidden = !i.desc; dsc.textContent = i.desc || "";
     body.querySelector("#is-editp").hidden = !i.g.dyn;
     $("#sheet-title").textContent = i.g.title;
+    body.querySelector('[for="is-q"]').textContent = quantityLabel(i.product);
+    body.querySelector('.stepper [data-act="dec"]').setAttribute("aria-label", `Restar ${quantityStep(i.product)}`);
+    body.querySelector('.stepper [data-act="inc"]').setAttribute("aria-label", `Sumar ${quantityStep(i.product)}`);
     const v = visibleOrder(), idx = v.findIndex(x => x.key === k);
     body.querySelector("#is-prev").disabled = idx <= 0;
     body.querySelector("#is-next").disabled = idx < 0 || idx >= v.length - 1;
@@ -567,6 +583,16 @@ function paintItemSheet(changed) {
   seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === s.s));
   const inp = body.querySelector("#is-q");
   if (document.activeElement !== inp) inp.value = q || "";
+  const equivalent = body.querySelector("#is-equivalent");
+  equivalent.hidden = !isNailSet(i.product);
+  if (!equivalent.hidden) {
+    equivalent.textContent = s.s || q
+      ? `${stockTotalLabel(q, true)} · ${SETS_PER_BOX} sets por caja`
+      : `Cantidad pendiente · ${SETS_PER_BOX} sets por caja`;
+    inp.setAttribute("aria-describedby", "is-equivalent");
+  } else {
+    inp.removeAttribute("aria-describedby");
+  }
   body.querySelector('.stepper [data-act="dec"]').disabled = !q;
   body.querySelector("#is-edited").textContent = s.by ? `Editado por ${s.by} · ${ago(s.at)}` : "Sin revisar todavía";
 }
@@ -585,15 +611,15 @@ function paintResumen() {
   $("#r-pct").textContent = `${t.total ? Math.round(t.rev / t.total * 100) : 0} %`;
   $("#r-left").textContent = t.pend ? `Faltan ${plural(t.pend, "producto", "productos")}` : "Conteo completo";
   setRing($("#ring-big"), t.total ? t.rev / t.total : 0);
-  $("#r-hay").textContent = t.hay; $("#r-no").textContent = t.no; $("#r-uds").textContent = t.uds; $("#r-pend").textContent = t.pend;
+  $("#r-hay").textContent = t.hay; $("#r-no").textContent = t.no; $("#r-uds").textContent = formatStockUnits(t.uds); $("#r-pend").textContent = t.pend;
   const p = people();
   $("#r-people").textContent = p.length ? p.join(", ") : "Nadie todavía";
   $("#r-groups").innerHTML = CAT.map(g => {
     const list = g.items, hay = list.filter(i => st(i.key).s === "hay").length, rev = list.filter(i => st(i.key).s).length, u = unitsOf(g);
     return `<li><button type="button" class="cell action" data-g="${g.id}">
-      <div class="cell-text"><div class="t1">${esc(g.title)}${g.dyn && g.size ? ` · ${esc(g.size)}` : ""}</div><div class="t2">${hay} de ${list.length} con stock${rev < list.length ? ` · ${plural(list.length - rev, "pendiente", "pendientes")}` : ""}</div>
+      <div class="cell-text"><div class="t1">${esc(g.title)}${g.dyn && g.size && g.kind !== "unas" ? ` · ${esc(g.size)}` : ""}</div><div class="t2">${hay} de ${list.length} con stock${rev < list.length ? ` · ${plural(list.length - rev, "pendiente", "pendientes")}` : ""}</div>
       <div class="mini-bar"><i style="width:${list.length ? hay / list.length * 100 : 0}%"></i></div></div>
-      <span class="r-units">${plural(u, "ud", "uds")}</span>${ICON.chevR}</button></li>`;
+      <span class="r-units">${stockTotalLabel(u, g.kind === "unas")}</span>${ICON.chevR}</button></li>`;
   }).join("");
 }
 $("#r-groups").addEventListener("click", e => {
@@ -648,10 +674,11 @@ function paintProducts() {
   $("#products").classList.add("prod-list");
   $("#products").innerHTML = list.map(p => {
     const s = st(p.id), q = s.s === "no" ? 0 : (s.q || 0);
-    const status = s.s === "hay" ? `<span class="dot-hay">Hay · ${plural(q, "unidad", "unidades")}</span>` : s.s === "no" ? `<span class="dot-no">No hay</span>` : "Sin revisar";
+    const amount = isNailSet(p) ? plural(q, "set", "sets") : plural(q, "unidad", "unidades");
+    const status = s.s === "hay" ? `<span class="dot-hay">Hay · ${amount}</span>` : s.s === "no" ? `<span class="dot-no">No hay</span>` : "Sin revisar";
     return `<li><button type="button" class="cell action" data-id="${esc(p.id)}">
       ${thumbHTML({ img: p.photo, n: null })}
-      <div class="cell-text"><div class="t1">${esc(p.name)}</div><div class="t2">${p.size || KINDS[p.kind]?.one || "Otro"} · ${status}</div></div>
+      <div class="cell-text"><div class="t1">${esc(p.name)}</div><div class="t2">${esc(p.size || KINDS[p.kind]?.one || "Otro")} · ${status}</div></div>
       ${ICON.chevR}</button></li>`;
   }).join("");
 }
@@ -710,9 +737,9 @@ function openProduct(p) {
       <div class="segmented none" id="p-av" style="--n:2"><span class="seg-thumb"></span>
         <button type="button" class="seg-hay" data-v="hay" aria-selected="false">Hay</button>
         <button type="button" class="seg-no" data-v="no" aria-selected="false">No hay</button></div>
-      <ul class="list"><li class="cell static qty-cell"><div class="cell-text"><div class="t1">Unidades</div></div>
-        <input class="qty-input" id="p-q" type="number" inputmode="numeric" pattern="[0-9]*" min="0" placeholder="0" aria-label="Unidades">
-        <div class="stepper lg"><button type="button" data-d="-1" aria-label="Restar una unidad">${ICON.minus}</button><i></i><button type="button" data-d="1" aria-label="Sumar una unidad">${ICON.plus}</button></div></li></ul>
+      <ul class="list"><li class="cell static qty-cell"><div class="cell-text"><label class="t1" for="p-q">${quantityLabel(p)}</label></div>
+        <input class="qty-input" id="p-q" type="number" inputmode="numeric" min="0" placeholder="0">
+        <div class="stepper lg"><button type="button" data-d="-1" aria-label="Restar ${quantityStep(p)}">${ICON.minus}</button><i></i><button type="button" data-d="1" aria-label="Sumar ${quantityStep(p)}">${ICON.plus}</button></div></li></ul>
       <ul class="list spaced"><li class="cell static"><div class="cell-text"><div class="t1">Publicado en Mercado Libre</div></div>
         <input type="checkbox" class="switch" id="p-pub" role="switch" aria-label="Publicado en Mercado Libre"></li></ul>
       ${p ? `<p class="sec-foot">Agregado por ${esc(p.createdBy || "—")}${p.createdAt ? " · " + esc(ago(p.createdAt)) : ""}</p>` : ""}
@@ -721,11 +748,13 @@ function openProduct(p) {
       if (f.busy) return false;
       const name = $("#p-name").value.trim();
       if (!name) { hud("Escribe el nombre del producto.", "err"); $("#p-name").focus(); return false; }
+      const quantity = $("#p-q");
+      if (!quantity.reportValidity()) return false;
       const id = p ? p.id : backend.newId();
       const data = { name, desc: $("#p-desc").value.trim(), size: $("#p-size").value.trim(), kind: f.kind, published: $("#p-pub").checked };
       if (f.photoChanged) { data.photo = f.photo; data.color = f.color; }
       save(backend.saveProduct(id, data, !p));
-      const q = Math.max(0, parseInt($("#p-q").value, 10) || 0);
+      const q = quantity.valueAsNumber || 0;
       const s = f.s || (q > 0 ? "hay" : null);
       const before = p ? st(p.id) : { s: null, q: 0 };
       if (s !== (before.s || null) || q !== (before.s === "no" ? 0 : before.q || 0)) save(backend.setItem(id, s === "no" ? { s: "no", q: 0 } : { s, q }));

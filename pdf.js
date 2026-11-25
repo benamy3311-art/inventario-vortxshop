@@ -1,8 +1,10 @@
 // Exporta el conteo a PDF (carta) con la foto, el estado y las unidades de cada producto.
+import { isNailSet, stockSixths, formatStockUnits } from "./catalog.js";
+
 const JSPDF_URL = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 const pad = n => String(n).padStart(2, "0");
 const rgb = h => /^#[0-9a-f]{6}$/i.test(h || "") ? [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16)) : [142, 142, 147];
-const CAT_TITLE = { cuadro: "Cuadros", silla: "Sillas", otro: "Otros" };
+const CAT_TITLE = { cuadro: "Cuadros", silla: "Sillas", otro: "Otros", unas: "Uñas" };
 
 function loadJsPDF() {
   if (window.jspdf) return Promise.resolve(window.jspdf);
@@ -46,8 +48,8 @@ export async function buildPDF({ groups, st, fecha, people }) {
   y += 21;
 
   let rev = 0, hay = 0, no = 0, uds = 0;
-  all.forEach(i => { const s = st(i.key); if (s.s) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += s.s === "no" ? 0 : (s.q || 0); });
-  const boxes = [["Revisados", `${rev} de ${TOTAL}`, INK], ["Con stock", String(hay), OK], ["Sin stock", String(no), NO], ["Unidades", String(uds), INK]];
+  all.forEach(i => { const s = st(i.key); if (s.s) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += stockSixths(i.product, s.s === "no" ? 0 : (s.q || 0)); });
+  const boxes = [["Revisados", `${rev} de ${TOTAL}`, INK], ["Con stock", String(hay), OK], ["Sin stock", String(no), NO], ["Unidades", formatStockUnits(uds), INK]];
   const bw = (CW - 9) / 4;
   boxes.forEach(([l, v, c], k) => {
     const x = M + k * (bw + 3);
@@ -102,9 +104,10 @@ export async function buildPDF({ groups, st, fecha, people }) {
     doc.text(label, x + 2.2 + pw / 2, py + 3.2, { align: "center" });
     const q = s.s === "no" ? 0 : (s.q || 0);
     doc.setFontSize(14); doc.setTextColor(...(q ? INK : MUT));
-    doc.text(String(q), x + cw - 6.2, py + 4.2, { align: "right" });
+    const nailSet = isNailSet(i.product);
+    doc.text(nailSet && !s.s && !q ? "—" : String(q), x + cw - (nailSet ? 7.2 : 6.2), py + 4.2, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(6); doc.setTextColor(...MUT);
-    doc.text("uds", x + cw - 2.2, py + 4.2, { align: "right" });
+    doc.text(nailSet ? "sets" : "uds", x + cw - 2.2, py + 4.2, { align: "right" });
   }
 
   // Grupos seguidos del mismo tipo que caben en una fila de 5 comparten banda.
@@ -129,15 +132,15 @@ export async function buildPDF({ groups, st, fecha, people }) {
       const list = g.items, span = Math.min(5, list.length);
       const sw = span * cw + (span - 1) * gap, x = M + col * (cw + gap);
       col += span;
-      const tot = list.reduce((a, i) => a + (st(i.key).s === "no" ? 0 : st(i.key).q || 0), 0);
+      const tot = list.reduce((a, i) => a + stockSixths(i.product, st(i.key).s === "no" ? 0 : st(i.key).q || 0), 0);
       const conStock = list.filter(i => st(i.key).s === "hay").length;
       // La medida va en una pastilla oscura al inicio de la línea de datos; el resto del texto se corre a su derecha.
       doc.setFont("helvetica", "bold"); doc.setFontSize(7.6);
       // En grupos de un solo cuadro no cabe junto al texto; la medida ya va sobre la foto.
-      const gsize = span >= 2 ? g.size : "";
+      const gsize = span >= 2 && g.kind !== "unas" ? g.size : "";
       const pw = gsize ? doc.getTextWidth(gsize) + 5 : 0, off = gsize ? pw + 2 : 0;
       doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-      const meta = doc.splitTextToSize([g.mco && `MCO ${g.mco}`, g.dyn && "Agregados desde la app", `${conStock} de ${list.length} con stock`, `${tot} uds`].filter(Boolean).join(" · "), sw - 2 - off);
+      const meta = doc.splitTextToSize([g.mco && `MCO ${g.mco}`, g.dyn && "Agregados desde la app", `${conStock} de ${list.length} con stock`, `${formatStockUnits(tot)} ${g.kind === "unas" ? "cajas eq." : "uds"}`].filter(Boolean).join(" · "), sw - 2 - off);
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5);
       const title = doc.splitTextToSize(g.title, sw - 2);
       return { list, x, title, meta, size: gsize, pw, off, h: title.length * 4.4 + Math.max(meta.length * 3.1, gsize ? 4.6 : 0) + 2.5 };
