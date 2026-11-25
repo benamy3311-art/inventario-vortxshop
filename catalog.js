@@ -41,6 +41,8 @@ export const TOTAL = ITEMS.length;
 // Los sets de uñas se cuentan enteros por variante y en cajas de seis en el resumen.
 export const SETS_PER_BOX = 6;
 export const isNailSet = product => product?.stockUnit === "nail-set";
+export const hasPendingQuantity = (product, stock) => isNailSet(product) && stock.s === "hay" && !Number.isFinite(stock.q);
+export const isStockPending = (product, stock) => !stock.s || hasPendingQuantity(product, stock);
 export const stockSixths = (product, quantity) => isNailSet(product) ? quantity : quantity * SETS_PER_BOX;
 
 const decimalStock = new Intl.NumberFormat("es-CO", { useGrouping: false, maximumFractionDigits: 6 });

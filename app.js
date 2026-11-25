@@ -1,4 +1,4 @@
-import { GROUPS, ITEMS, SIZE_PRESETS, SETS_PER_BOX, isNailSet, stockSixths, formatStockUnits } from "./catalog.js";
+import { GROUPS, ITEMS, SIZE_PRESETS, SETS_PER_BOX, isNailSet, hasPendingQuantity, isStockPending, stockSixths, formatStockUnits } from "./catalog.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
@@ -51,6 +51,7 @@ const S = {
   filter: "todos", query: "", pending: false, tab: "conteo", keep: new Set(), sheetKey: null,
 };
 const st = k => S.items[k] || { s: null, q: 0 };
+const isPending = i => isStockPending(i.product, st(i.key));
 const isAdmin = () => S.me?.role === "admin";
 
 /* ───────────── Catálogo: productos publicados + productos agregados desde la app ───────────── */
@@ -326,10 +327,11 @@ function renderCatalog() {
 function paintRow(i) {
   const li = rowEl(i.key); if (!li) return;
   const s = st(i.key), q = s.s === "no" ? 0 : (s.q || 0);
+  const pendingQuantity = hasPendingQuantity(i.product, s);
   li.dataset.s = s.s || "";
-  li.querySelector(".status").textContent = s.s === "hay" ? `Hay${s.by ? " · " + first(s.by) : ""}` : s.s === "no" ? `No hay${s.by ? " · " + first(s.by) : ""}` : "Sin revisar";
+  li.querySelector(".status").textContent = s.s === "hay" ? `Hay${pendingQuantity ? " · Cantidad pendiente" : s.by ? " · " + first(s.by) : ""}` : s.s === "no" ? `No hay${s.by ? " · " + first(s.by) : ""}` : "Sin revisar";
   const qe = li.querySelector(".qty");
-  qe.textContent = isNailSet(i.product) ? (s.s || q ? plural(q, "set", "sets") : "—") : q;
+  qe.textContent = isNailSet(i.product) ? (!pendingQuantity && (s.s || q) ? plural(q, "set", "sets") : "—") : q;
   qe.classList.toggle("zero", !q);
   li.querySelector('[data-act="dec"]').disabled = !q;
   li.querySelector(".lead span").textContent = s.s === "hay" ? "Desmarcar" : "Hay";
@@ -338,7 +340,7 @@ function paintRow(i) {
 
 function totals() {
   let rev = 0, hay = 0, no = 0, uds = 0;
-  ALL.forEach(i => { const s = st(i.key); if (s.s) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += stockSixths(i.product, s.s === "no" ? 0 : (s.q || 0)); });
+  ALL.forEach(i => { const s = st(i.key); if (!isStockPending(i.product, s)) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += stockSixths(i.product, s.s === "no" ? 0 : (s.q || 0)); });
   return { rev, hay, no, uds, pend: ALL.length - rev, total: ALL.length };
 }
 const unitsOf = g => g.items.reduce((a, i) => a + stockSixths(i.product, st(i.key).s === "no" ? 0 : st(i.key).q || 0), 0);
@@ -369,7 +371,7 @@ function applyFilter() {
   ALL.forEach(i => {
     const li = rowEl(i.key); if (!li) return;
     const s = st(i.key).s;
-    const okF = S.filter === "todos" || S.keep.has(i.key) || (S.filter === "pend" ? !s : S.filter === s);
+    const okF = S.filter === "todos" || S.keep.has(i.key) || (S.filter === "pend" ? isPending(i) : S.filter === s);
     const okQ = !q || norm(`${i.name} ${i.g.title} ${i.n != null ? pad(i.n) : ""} ${i.g.mco} ${i.g.size || ""} ${i.desc || ""}`).includes(q);
     li.hidden = !(okF && okQ);
     any ||= okF && okQ;
@@ -391,7 +393,7 @@ $("#search").addEventListener("input", e => { S.query = e.target.value; S.keep.c
 $("#search").addEventListener("keydown", e => { if (e.key === "Enter") e.target.blur(); });
 $("#search-clear").addEventListener("click", () => { $("#search").value = ""; S.query = ""; $("#search-clear").hidden = true; applyFilter(); });
 $("#btn-jump").addEventListener("click", () => {
-  const i = ALL.find(i => !st(i.key).s && !rowEl(i.key)?.hidden) || ALL.find(i => !st(i.key).s);
+  const i = ALL.find(i => isPending(i) && !rowEl(i.key)?.hidden) || ALL.find(isPending);
   if (!i) return hud("No quedan pendientes.", "ok");
   if (rowEl(i.key).hidden) { S.query = ""; $("#search").value = ""; $("#search-clear").hidden = true; setFilter("todos"); }
   scrollToEl(rowEl(i.key));
@@ -526,7 +528,7 @@ function openItem(k) {
         if (qi.value === "") return;
         if (!qi.validity.valid) return;
         const q = qi.valueAsNumber, k = S.sheetKey, cur = st(k);
-        if (q === (cur.s === "no" ? 0 : cur.q || 0)) return;
+        if (!hasPendingQuantity(BY_KEY.get(k)?.product, cur) && q === (cur.s === "no" ? 0 : cur.q || 0)) return;
         S.keep.add(k);
         save(backend.setItem(k, q > 0 ? { q, s: "hay" } : { q }));
       };
@@ -586,7 +588,7 @@ function paintItemSheet(changed) {
   const equivalent = body.querySelector("#is-equivalent");
   equivalent.hidden = !isNailSet(i.product);
   if (!equivalent.hidden) {
-    equivalent.textContent = s.s || q
+    equivalent.textContent = !hasPendingQuantity(i.product, s) && (s.s || q)
       ? `${stockTotalLabel(q, true)} · ${SETS_PER_BOX} sets por caja`
       : `Cantidad pendiente · ${SETS_PER_BOX} sets por caja`;
     inp.setAttribute("aria-describedby", "is-equivalent");
@@ -615,9 +617,9 @@ function paintResumen() {
   const p = people();
   $("#r-people").textContent = p.length ? p.join(", ") : "Nadie todavía";
   $("#r-groups").innerHTML = CAT.map(g => {
-    const list = g.items, hay = list.filter(i => st(i.key).s === "hay").length, rev = list.filter(i => st(i.key).s).length, u = unitsOf(g);
+    const list = g.items, hay = list.filter(i => st(i.key).s === "hay").length, pending = list.filter(isPending).length, u = unitsOf(g);
     return `<li><button type="button" class="cell action" data-g="${g.id}">
-      <div class="cell-text"><div class="t1">${esc(g.title)}${g.dyn && g.size && g.kind !== "unas" ? ` · ${esc(g.size)}` : ""}</div><div class="t2">${hay} de ${list.length} con stock${rev < list.length ? ` · ${plural(list.length - rev, "pendiente", "pendientes")}` : ""}</div>
+      <div class="cell-text"><div class="t1">${esc(g.title)}${g.dyn && g.size && g.kind !== "unas" ? ` · ${esc(g.size)}` : ""}</div><div class="t2">${hay} de ${list.length} con stock${pending ? ` · ${plural(pending, "pendiente", "pendientes")}` : ""}</div>
       <div class="mini-bar"><i style="width:${list.length ? hay / list.length * 100 : 0}%"></i></div></div>
       <span class="r-units">${stockTotalLabel(u, g.kind === "unas")}</span>${ICON.chevR}</button></li>`;
   }).join("");
@@ -674,7 +676,7 @@ function paintProducts() {
   $("#products").classList.add("prod-list");
   $("#products").innerHTML = list.map(p => {
     const s = st(p.id), q = s.s === "no" ? 0 : (s.q || 0);
-    const amount = isNailSet(p) ? plural(q, "set", "sets") : plural(q, "unidad", "unidades");
+    const amount = hasPendingQuantity(p, s) ? "Cantidad pendiente" : isNailSet(p) ? plural(q, "set", "sets") : plural(q, "unidad", "unidades");
     const status = s.s === "hay" ? `<span class="dot-hay">Hay · ${amount}</span>` : s.s === "no" ? `<span class="dot-no">No hay</span>` : "Sin revisar";
     return `<li><button type="button" class="cell action" data-id="${esc(p.id)}">
       ${thumbHTML({ img: p.photo, n: null })}
@@ -757,7 +759,11 @@ function openProduct(p) {
       const q = quantity.valueAsNumber || 0;
       const s = f.s || (q > 0 ? "hay" : null);
       const before = p ? st(p.id) : { s: null, q: 0 };
-      if (s !== (before.s || null) || q !== (before.s === "no" ? 0 : before.q || 0)) save(backend.setItem(id, s === "no" ? { s: "no", q: 0 } : { s, q }));
+      const filledPending = hasPendingQuantity(p, before) && quantity.value !== "";
+      if (filledPending || s !== (before.s || null) || q !== (before.s === "no" ? 0 : before.q || 0)) {
+        const patch = isNailSet(p) && s === "hay" && quantity.value === "" ? { s } : { s, q };
+        save(backend.setItem(id, patch));
+      }
       hud(p ? "Producto actualizado" : "Producto agregado", "ok");
       closeSheet();
     },

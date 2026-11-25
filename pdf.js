@@ -1,5 +1,5 @@
 // Exporta el conteo a PDF (carta) con la foto, el estado y las unidades de cada producto.
-import { isNailSet, stockSixths, formatStockUnits } from "./catalog.js";
+import { isNailSet, hasPendingQuantity, isStockPending, stockSixths, formatStockUnits } from "./catalog.js";
 
 const JSPDF_URL = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 const pad = n => String(n).padStart(2, "0");
@@ -48,7 +48,7 @@ export async function buildPDF({ groups, st, fecha, people }) {
   y += 21;
 
   let rev = 0, hay = 0, no = 0, uds = 0;
-  all.forEach(i => { const s = st(i.key); if (s.s) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += stockSixths(i.product, s.s === "no" ? 0 : (s.q || 0)); });
+  all.forEach(i => { const s = st(i.key); if (!isStockPending(i.product, s)) rev++; if (s.s === "hay") hay++; if (s.s === "no") no++; uds += stockSixths(i.product, s.s === "no" ? 0 : (s.q || 0)); });
   const boxes = [["Revisados", `${rev} de ${TOTAL}`, INK], ["Con stock", String(hay), OK], ["Sin stock", String(no), NO], ["Unidades", formatStockUnits(uds), INK]];
   const bw = (CW - 9) / 4;
   boxes.forEach(([l, v, c], k) => {
@@ -105,6 +105,11 @@ export async function buildPDF({ groups, st, fecha, people }) {
     const q = s.s === "no" ? 0 : (s.q || 0);
     doc.setFontSize(14); doc.setTextColor(...(q ? INK : MUT));
     const nailSet = isNailSet(i.product);
+    if (hasPendingQuantity(i.product, s)) {
+      doc.setFont("helvetica", "normal"); doc.setFontSize(6);
+      doc.text("Cant. pendiente", x + cw - 2.2, py + 4.2, { align: "right" });
+      return;
+    }
     doc.text(nailSet && !s.s && !q ? "—" : String(q), x + cw - (nailSet ? 7.2 : 6.2), py + 4.2, { align: "right" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(6); doc.setTextColor(...MUT);
     doc.text(nailSet ? "sets" : "uds", x + cw - 2.2, py + 4.2, { align: "right" });
